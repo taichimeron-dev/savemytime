@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14161F">
+<meta name="color-scheme" content="dark">
+<title>ひと呼吸</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #14161F;
+    --surface: #1E2230;
+    --line: #2C3242;
+    --text: #C9C2B0;
+    --muted: #7C8497;
+    --accent: #D9A441;
+    --accent-dim: #6B5424;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0; }
+
+  html{
+    background: var(--bg);
+    min-height:100%;
+  }
+
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,sans-serif;
+    overscroll-behavior:none;
+  }
+
+  body{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    min-height:100dvh;
+    padding: 28px 24px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------- 上部：進行バー ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom: 8px;
+  }
+
+  .timecode{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    font-weight:500;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:0.06em;
+    color:var(--accent);
+    min-width:44px;
+  }
+
+  .bar{
+    flex:1;
+    height:4px;
+    border-radius:2px;
+    background:var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .bar-fill{
+    position:absolute;
+    inset:0 auto 0 0;
+    width:0%;
+    background:var(--accent);
+    transition: width 1s linear;
+  }
+
+  .seg{
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.08em;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- 見出し ---------- */
+  .kicker{
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin: 30px 0 0;
+  }
+
+  /* ---------- フレーズカード ---------- */
+  .stage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding: 12px 0;
+  }
+
+  .card{
+    opacity:1;
+    transition: opacity .45s ease;
+  }
+
+  .card.fading{ opacity:0; }
+
+  .en{
+    font-family:'Newsreader',serif;
+    font-size:31px;
+    line-height:1.34;
+    font-weight:500;
+    color:var(--accent);
+    letter-spacing:-0.005em;
+  }
+
+  .rule{
+    width:34px;
+    height:1px;
+    background:var(--accent-dim);
+    margin: 20px 0;
+  }
+
+  .ja{
+    font-size:15px;
+    line-height:1.75;
+    color:var(--muted);
+  }
+
+  .note{
+    margin-top:22px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:13px;
+    line-height:1.7;
+    color:var(--muted);
+  }
+
+  .note b{
+    color:var(--accent);
+    font-weight:700;
+  }
+
+  /* ---------- 下部アクション ---------- */
+  .actions{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .5s ease, transform .5s ease;
+    pointer-events:none;
+  }
+
+  .actions.ready{
+    opacity:1;
+    transform:none;
+    pointer-events:auto;
+  }
+
+  .go{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:16px;
+    font-weight:600;
+    color:var(--bg);
+    background:var(--accent);
+    border:none;
+    border-radius:14px;
+    padding:17px;
+    cursor:pointer;
+  }
+
+  .go:active{ opacity:.85; }
+
+  .skip{
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    padding:6px;
+    cursor:pointer;
+  }
+
+  .tally{
+    text-align:center;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.04em;
+    margin-top:6px;
+    min-height:14px;
+  }
+
+  .waiting{
+    text-align:center;
+    font-size:13px;
+    color:var(--muted);
+    padding:17px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .bar-fill, .card{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="timecode" id="timecode">0:45</div>
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+    <div class="seg" id="seg">1/3</div>
+  </div>
+
+  <div class="kicker">Business English</div>
+
+  <div class="stage">
+    <div class="card" id="card">
+      <div class="en" id="en"></div>
+      <div class="rule"></div>
+      <div class="ja" id="ja"></div>
+      <div class="note" id="note"></div>
+    </div>
+  </div>
+
+  <div id="footer">
+    <div class="waiting" id="waiting">開くまで、あと少し</div>
+    <div class="actions" id="actions">
+      <button class="go" id="goBtn">Instagramを開く</button>
+      <button class="skip" id="skipBtn">やっぱりやめておく</button>
+    </div>
+    <div class="tally" id="tally"></div>
+  </div>
+
+<script>
+  const DURATION = 45;
+  const PHRASE_COUNT = 3;            // 45秒を3フレーズに分割（15秒ずつ）
+  const SLOT = DURATION / PHRASE_COUNT;
+  const INSTAGRAM_APP_URL = 'instagram://app';
+  const INSTAGRAM_WEB_URL = 'https://www.instagram.com/';
+
+  const PHRASES = [
+    { en:"Can everyone hear me okay?",
+      ja:"皆さん、聞こえていますか。",
+      note:"オンライン会議の開始時の定番。<b>hear me okay</b> で音声の確認をする言い方。" },
+    { en:"Let's jump right in.",
+      ja:"早速始めましょう。",
+      note:"<b>jump right in</b> は「前置きなしですぐ本題に入る」。会議冒頭の合図に。" },
+    { en:"Sorry, go ahead.",
+      ja:"すみません、どうぞ続けてください。",
+      note:"発言が被ったときに相手に譲る一言。会議で非常によく使われます。" },
+    { en:"Could you repeat that, please?",
+      ja:"もう一度おっしゃっていただけますか。",
+      note:"聞き取れなかったときの丁寧な聞き返し。<b>Sorry, what was that?</b> も同じ場面で使えます。" },
+    { en:"I think you're on mute.",
+      ja:"ミュートになっているかもしれません。",
+      note:"オンライン会議の頻出フレーズ第一位と言われるほど定番の一言。" },
+    { en:"Let's take it from the top.",
+      ja:"最初から確認していきましょう。",
+      note:"<b>from the top</b> は「最初から」。議題や資料を頭から見直すときに使います。" },
+    { en:"Any questions so far?",
+      ja:"ここまでで何か質問はありますか。",
+      note:"説明の途中で理解度を確認する定番の一言。区切りの良いタイミングで使われます。" },
+    { en:"Let's wrap things up.",
+      ja:"そろそろまとめましょう。",
+      note:"<b>wrap up</b> は「締めくくる」。会議終了が近いことを伝える合図。" },
+    { en:"To summarize what we've covered...",
+      ja:"ここまでの内容をまとめると…",
+      note:"会議の要点をまとめる際の切り出し。締めの発言としてそのまま使えます。" },
+    { en:"I'll hand it over to Sarah.",
+      ja:"ここからはSarahにお願いします。",
+      note:"<b>hand it over to</b> は「進行を引き渡す」。次の発表者にバトンタッチする表現。" },
+    { en:"Does that make sense?",
+      ja:"ここまでで分かりにくい点はありますか。",
+      note:"説明の理解度を確認する定番のひとこと。日本語の「大丈夫でしょうか」に近い感覚。" },
+    { en:"Let's take a five-minute break.",
+      ja:"5分ほど休憩を挟みましょう。",
+      note:"長めの会議で使う定番フレーズ。時間はfive-minuteの部分を自由に差し替え可能。" },
+    { en:"Could you share your screen?",
+      ja:"画面を共有していただけますか。",
+      note:"オンライン会議で資料を見せてもらうときの決まり文句。" },
+    { en:"I lost you for a second there.",
+      ja:"一瞬、音声が途切れてしまいました。",
+      note:"通信トラブルで聞き取れなかったことを伝える柔らかい表現。" },
+    { en:"Let's go around the room.",
+      ja:"順番に一人ずつ意見を聞いていきましょう。",
+      note:"<b>go around the room</b> は「参加者に順番に発言してもらう」進行の合図。" },
+    { en:"Just to build on what you said...",
+      ja:"今おっしゃったことに補足すると…",
+      note:"<b>build on</b> は「相手の発言をベースに付け加える」。議論を発展させる言い方。" },
+    { en:"I have a quick question.",
+      ja:"ちょっと質問してもいいですか。",
+      note:"発言の割り込みを丁寧に切り出す定番フレーズ。<b>quick</b> が「手短に」という配慮を示します。" },
+    { en:"Let's circle back to that point.",
+      ja:"その点は後でまた戻りましょう。",
+      note:"議論が脱線しそうなときに、話題を一旦保留にする言い方。" },
+    { en:"Can we table that for now?",
+      ja:"それはいったん保留にできますか。",
+      note:"米語での<b>table</b>は「棚上げする」。会議中に議題を後回しにする定番表現。" },
+    { en:"I want to jump in here.",
+      ja:"ここでひとこと挟ませてください。",
+      note:"議論の途中で発言に割り込むときの前置き。丁寧に間に入る言い方。" },
+    { en:"Sorry to interrupt.",
+      ja:"割り込んですみません。",
+      note:"発言を遮る前に添える一言。日本語の「すみません、ちょっといいですか」に相当。" },
+    { en:"Let me just finish this thought.",
+      ja:"少しだけ最後まで話させてください。",
+      note:"話を遮られそうなときに、発言を続けたい意思を伝える表現。" },
+    { en:"Where were we?",
+      ja:"どこまで話していましたっけ。",
+      note:"脱線した後、話を元に戻すときの一言。会議あるあるの決まり文句です。" },
+    { en:"Let's stick to the agenda.",
+      ja:"アジェンダに沿って進めましょう。",
+      note:"話が脱線したときに軌道修正する表現。ファシリテーターがよく使います。" },
+    { en:"I'll let you take it from here.",
+      ja:"ここから先はお任せします。",
+      note:"進行や説明を相手に引き継ぐときの表現。<b>hand it over to</b>より口語的。" },
+    { en:"Can you elaborate on that?",
+      ja:"もう少し詳しく説明していただけますか。",
+      note:"<b>elaborate</b> は「詳しく述べる」。説明を深掘りしてほしいときに。" },
+    { en:"I second that.",
+      ja:"私もその意見に賛成です。",
+      note:"誰かの発言に賛同するときの短い一言。会議で頻繁に使われる相づち。" },
+    { en:"That's a really good point.",
+      ja:"それはとても良い指摘ですね。",
+      note:"相手の発言を肯定的に受け止める定番の相づち。議論の雰囲気を和らげます。" },
+    { en:"Let's put a pin in that.",
+      ja:"その話は一旦置いておきましょう。",
+      note:"<b>put a pin in it</b> は「印をつけて後で必ず戻る」保留の表現。" },
+    { en:"We're running a bit low on time.",
+      ja:"少し時間が押してきています。",
+      note:"会議の終了時刻が近いことをやんわり伝える表現。進行役がよく使います。" },
+    { en:"Can we take this offline?",
+      ja:"この話は会議の外で個別にしませんか。",
+      note:"議論が長引きそうなときに、全体の場から切り離す提案。会議の頻出表現。" },
+    { en:"I'm going to mute myself.",
+      ja:"少しミュートにさせていただきます。",
+      note:"背景音がある場合などに、自分から伝える一言。" },
+    { en:"Could you say that one more time?",
+      ja:"もう一度言っていただけますか。",
+      note:"<b>Could you repeat that</b>よりややカジュアルな聞き返し方。" },
+    { en:"Let's do a quick recap.",
+      ja:"簡単に振り返っておきましょう。",
+      note:"<b>recap</b> は「要点をおさらいする」。会議の節目でよく使われます。" },
+    { en:"I'll send the notes afterward.",
+      ja:"議事録は後ほど送ります。",
+      note:"会議の締めくくりでよく使われる一言。<b>notes</b>は「議事録・メモ」の意味。" },
+    { en:"Feel free to jump in anytime.",
+      ja:"いつでも自由に発言してください。",
+      note:"参加者に発言を促す進行役の一言。カジュアルで話しやすい雰囲気を作ります。" },
+    { en:"Let's open the floor for questions.",
+      ja:"質疑応答の時間にしましょう。",
+      note:"<b>open the floor</b> は「発言の場を開く」。プレゼン後の定番フレーズ。" },
+    { en:"I think we've covered everything.",
+      ja:"必要な点はひと通り話せたと思います。",
+      note:"会議の終わりに、議題が出尽くしたことを確認する一言。" },
+    { en:"Thanks, everyone, for joining.",
+      ja:"皆さん、ご参加ありがとうございました。",
+      note:"会議の締めの挨拶として非常によく使われる定番フレーズ。" },
+    { en:"Let's kick things off.",
+      ja:"それでは始めましょう。",
+      note:"<b>kick off</b> は「物事を開始する」。会議やプロジェクトの開始合図。" },
+    { en:"Quick heads-up before we start.",
+      ja:"始める前に一点だけお知らせです。",
+      note:"<b>heads-up</b> は「事前の一言連絡」。本題前の小さな共有事項に使います。" },
+    { en:"Let's dive into the numbers.",
+      ja:"それでは数字の話に入りましょう。",
+      note:"<b>dive into</b> は「本格的に取り組む」。データや詳細の説明に入る合図。" },
+    { en:"Can we get everyone's thoughts on this?",
+      ja:"皆さんのご意見を聞かせてもらえますか。",
+      note:"参加者全員に意見を求める進行フレーズ。特定の誰かに偏らせない配慮の言い方。" },
+    { en:"Sorry, you cut out for a moment.",
+      ja:"すみません、一瞬音声が途切れました。",
+      note:"回線トラブルを伝える表現。<b>cut out</b>は「音声や映像が途切れる」の意味。" },
+    { en:"Let's leave it there for today.",
+      ja:"今日はここまでにしましょう。",
+      note:"会議を締めくくる柔らかい言い方。<b>Let's wrap up</b>よりやや口語的です。" }
+  ];
+
+  // --- 表示するフレーズをランダムに3つ選ぶ ---
+  function pick(n){
+    const pool = PHRASES.slice();
+    const out = [];
+    for(let i=0; i<n && pool.length; i++){
+      out.push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
+    }
+    return out;
+  }
+
+  const selected = pick(PHRASE_COUNT);
+
+  const enEl = document.getElementById('en');
+  const jaEl = document.getElementById('ja');
+  const noteEl = document.getElementById('note');
+  const cardEl = document.getElementById('card');
+  const segEl = document.getElementById('seg');
+  const barFill = document.getElementById('barFill');
+  const timecodeEl = document.getElementById('timecode');
+  const actionsEl = document.getElementById('actions');
+  const waitingEl = document.getElementById('waiting');
+  const tallyEl = document.getElementById('tally');
+
+  function render(i, animate){
+    const p = selected[i];
+    const apply = () => {
+      enEl.textContent = p.en;
+      jaEl.textContent = p.ja;
+      noteEl.innerHTML = p.note;
+      segEl.textContent = (i+1) + '/' + PHRASE_COUNT;
+      cardEl.classList.remove('fading');
+    };
+    if(animate){
+      cardEl.classList.add('fading');
+      setTimeout(apply, 450);
+    } else {
+      apply();
+    }
+  }
+
+  render(0, false);
+
+  let elapsed = 0;
+  let shownIndex = 0;
+
+  function fmt(sec){
+    const m = Math.floor(sec/60);
+    const s = String(sec % 60).padStart(2,'0');
+    return m + ':' + s;
+  }
+
+  const timer = setInterval(() => {
+    elapsed += 1;
+    const remaining = DURATION - elapsed;
+
+    timecodeEl.textContent = fmt(Math.max(remaining, 0));
+    barFill.style.width = (elapsed / DURATION * 100) + '%';
+
+    const idx = Math.min(Math.floor(elapsed / SLOT), PHRASE_COUNT - 1);
+    if(idx !== shownIndex){
+      shownIndex = idx;
+      render(idx, true);
+    }
+
+    if(remaining <= 0){
+      clearInterval(timer);
+      timecodeEl.textContent = '0:00';
+      waitingEl.style.display = 'none';
+      actionsEl.classList.add('ready');
+      recordOpen();
+    }
+  }, 1000);
+
+  document.getElementById('goBtn').addEventListener('click', () => {
+    const fallback = setTimeout(() => {
+      window.location.href = INSTAGRAM_WEB_URL;
+    }, 1200);
+    window.addEventListener('pagehide', () => clearTimeout(fallback), { once:true });
+    window.location.href = INSTAGRAM_APP_URL;
+  });
+
+  document.getElementById('skipBtn').addEventListener('click', () => {
+    document.body.innerHTML =
+      '<div style="flex:1;display:flex;align-items:center;justify-content:center;font-family:Newsreader,serif;font-style:italic;font-size:20px;color:#EDEBE5;text-align:center;padding:40px;">このタブを閉じて大丈夫です。</div>';
+  });
+
+  function recordOpen(){
+    const today = new Date().toISOString().slice(0,10);
+    const key = 'gate_tally';
+    let data = {};
+    try{ data = JSON.parse(localStorage.getItem(key) || '{}'); }catch(e){}
+    data[today] = (data[today] || 0) + 1;
+    localStorage.setItem(key, JSON.stringify(data));
+    tallyEl.textContent = '今日 ' + data[today] + ' 回目 ・ ' +
+      (data[today] * PHRASE_COUNT) + ' フレーズ学習';
+  }
+</script>
+
+</body>
+</html>
